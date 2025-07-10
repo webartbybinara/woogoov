@@ -1,3 +1,4 @@
+
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -18,11 +19,16 @@ const chartConfig = {
   },
   revenue: {
     label: "Revenue",
-    color: "hsl(var(--secondary))",
+    color: "hsl(var(--chart-2))",
   },
 };
 
 export function SalesChart({ data }: SalesChartProps) {
+  // Ensure we have data and format it properly
+  const chartData = data.length > 0 ? data : [
+    { date: new Date().toISOString().split('T')[0], sales: 0, revenue: 0 }
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -33,7 +39,7 @@ export function SalesChart({ data }: SalesChartProps) {
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig}>
-          <LineChart data={data}>
+          <LineChart data={chartData}>
             <XAxis 
               dataKey="date" 
               tickLine={false}
@@ -48,6 +54,18 @@ export function SalesChart({ data }: SalesChartProps) {
             <ChartTooltip 
               cursor={false}
               content={<ChartTooltipContent />}
+            />
+            <Line
+              dataKey="sales"
+              type="monotone"
+              stroke="var(--color-sales)"
+              strokeWidth={2}
+              dot={{
+                fill: "var(--color-sales)",
+              }}
+              activeDot={{
+                r: 6,
+              }}
             />
             <Line
               dataKey="revenue"
