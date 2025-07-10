@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
 
 export interface DateRange {
   from: Date;
@@ -53,27 +53,29 @@ export function DateFilter({ onDateRangeChange, selectedRange }: DateFilterProps
   ];
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {presetRanges.map((range) => (
-        <Button
-          key={range.label}
-          variant={selectedRange.label === range.label ? "default" : "outline"}
-          size="sm"
-          onClick={() => onDateRangeChange(range)}
-          className="text-sm"
-        >
-          {range.label}
-        </Button>
-      ))}
+    <div className="flex flex-col sm:flex-row flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2">
+        {presetRanges.map((range) => (
+          <Button
+            key={range.label}
+            variant={selectedRange.label === range.label ? "default" : "outline"}
+            size="sm"
+            onClick={() => onDateRangeChange(range)}
+            className="text-xs sm:text-sm whitespace-nowrap"
+          >
+            {range.label}
+          </Button>
+        ))}
+      </div>
       
       <Popover open={isOpen} onOpenChange={setIsOpen}>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="text-sm">
+          <Button variant="outline" size="sm" className="text-xs sm:text-sm whitespace-nowrap">
             <Calendar className="h-4 w-4 mr-2" />
             Custom Range
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0" align="end" side="bottom">
           <div className="p-4">
             <div className="space-y-4">
               <div>
