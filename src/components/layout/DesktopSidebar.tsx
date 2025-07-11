@@ -1,7 +1,9 @@
+
 import { NavLink } from "react-router-dom";
 import { Home, Package, ShoppingCart, BarChart3, Settings, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useState } from "react";
 
 const navigationItems = [
@@ -30,14 +32,17 @@ export function DesktopSidebar() {
             <span className="font-semibold text-foreground">WooCommerce</span>
           </div>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setCollapsed(!collapsed)}
-          className="p-2"
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {!collapsed && <ThemeToggle />}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCollapsed(!collapsed)}
+            className="p-2"
+          >
+            <Menu className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Navigation */}

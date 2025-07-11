@@ -1,6 +1,8 @@
+
 import { NavLink } from "react-router-dom";
 import { Home, Package, ShoppingCart, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const navigationItems = [
   { icon: Home, label: "Dashboard", path: "/" },
@@ -40,6 +42,9 @@ export function MobileNavigation() {
             )}
           </NavLink>
         ))}
+        <div className="flex flex-col items-center justify-center min-w-0 px-2 py-2">
+          <ThemeToggle />
+        </div>
       </div>
     </nav>
   );
