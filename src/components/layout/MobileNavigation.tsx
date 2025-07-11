@@ -42,9 +42,7 @@ export function MobileNavigation() {
             )}
           </NavLink>
         ))}
-        <div className="flex flex-col items-center justify-center min-w-0 px-2 py-2">
-          <ThemeToggle />
-        </div>
+        <ThemeToggle variant="mobile" />
       </div>
     </nav>
   );
