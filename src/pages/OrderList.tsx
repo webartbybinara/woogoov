@@ -1,10 +1,11 @@
 
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Eye, Calendar, User, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ordersApi, WooCommerceOrder } from "@/lib/woocommerce";
@@ -72,6 +73,21 @@ export function OrderList() {
 
   const statusCounts = getStatusCounts();
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case "all":
+        return `All Orders (${statusCounts.all})`;
+      case "pending":
+        return `Pending (${statusCounts.pending})`;
+      case "processing":
+        return `Processing (${statusCounts.processing})`;
+      case "completed":
+        return `Completed (${statusCounts.completed})`;
+      default:
+        return status;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -91,105 +107,102 @@ export function OrderList() {
         <p className="text-muted-foreground">Manage your customer orders</p>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search orders by customer, email, or order number..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-10"
-        />
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search orders by customer, email, or order number..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        
+        <div className="w-full sm:w-64">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger>
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Orders ({statusCounts.all})</SelectItem>
+              <SelectItem value="pending">Pending ({statusCounts.pending})</SelectItem>
+              <SelectItem value="processing">Processing ({statusCounts.processing})</SelectItem>
+              <SelectItem value="completed">Completed ({statusCounts.completed})</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
-      {/* Status Filter Tabs */}
-      <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1">
-          <TabsTrigger value="all" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
-            All ({statusCounts.all})
-          </TabsTrigger>
-          <TabsTrigger value="pending" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
-            Pending ({statusCounts.pending})
-          </TabsTrigger>
-          <TabsTrigger value="processing" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
-            Processing ({statusCounts.processing})
-          </TabsTrigger>
-          <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
-            Completed ({statusCounts.completed})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value={statusFilter} className="mt-6">
-          {/* Order List */}
-          <div className="space-y-4">
-            {filteredOrders.map((order) => {
-              const customerName = `${order.billing.first_name} ${order.billing.last_name}`;
-              const itemCount = order.line_items.reduce((total, item) => total + item.quantity, 0);
-              
-              return (
-                <Card 
-                  key={order.id} 
-                  className="group hover:shadow-lg transition-all duration-200 cursor-pointer"
-                  onClick={() => navigate(`/orders/${order.id}`)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-semibold text-foreground">
-                            Order #{order.number || order.id}
-                          </h3>
-                          <Badge variant={statusVariants[order.status as keyof typeof statusVariants]}>
-                            {order.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-2">
-                            <User className="h-4 w-4" />
-                            <span>{customerName}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4" />
-                            <span>{new Date(order.date_created).toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <DollarSign className="h-4 w-4" />
-                            <span className="font-medium text-foreground">${order.total}</span>
-                          </div>
-                        </div>
-                        
-                        <p className="text-xs text-muted-foreground">
-                          {itemCount} item{itemCount !== 1 ? 's' : ''} • {order.billing.email}
-                        </p>
-                      </div>
-                      
-                      <Button variant="outline" size="sm" className="shrink-0">
-                        <Eye className="h-4 w-4 mr-1" />
-                        View Details
-                      </Button>
+      {/* Order List */}
+      <div className="space-y-4">
+        {filteredOrders.map((order) => {
+          const customerName = `${order.billing.first_name} ${order.billing.last_name}`;
+          const itemCount = order.line_items.reduce((total, item) => total + item.quantity, 0);
+          
+          return (
+            <Card 
+              key={order.id} 
+              className="group hover:shadow-lg transition-all duration-200 cursor-pointer"
+              onClick={() => navigate(`/orders/${order.id}`)}
+            >
+              <CardContent className="p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-foreground">
+                        Order #{order.number || order.id}
+                      </h3>
+                      <Badge variant={statusVariants[order.status as keyof typeof statusVariants]}>
+                        {order.status}
+                      </Badge>
                     </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                    
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm text-muted-foreground">
+                      <div className="flex items-center space-x-2">
+                        <User className="h-4 w-4" />
+                        <span>{customerName}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="h-4 w-4" />
+                        <span>{new Date(order.date_created).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="h-4 w-4" />
+                        <span className="font-medium text-foreground">${order.total}</span>
+                      </div>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground">
+                      {itemCount} item{itemCount !== 1 ? 's' : ''} • {order.billing.email}
+                    </p>
+                  </div>
+                  
+                  <Button variant="outline" size="sm" className="shrink-0">
+                    <Eye className="h-4 w-4 mr-1" />
+                    View Details
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
-          {filteredOrders.length === 0 && (
-            <div className="text-center py-12">
-              <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-                <Search className="h-8 w-8 text-muted-foreground" />
-              </div>
-              <h3 className="text-lg font-semibold text-foreground mb-2">No orders found</h3>
-              <p className="text-muted-foreground">
-                {searchTerm || statusFilter !== "all" 
-                  ? "Try adjusting your search or filter criteria" 
-                  : "Orders will appear here when customers place them"}
-              </p>
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+      {filteredOrders.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+            <Search className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">No orders found</h3>
+          <p className="text-muted-foreground">
+            {searchTerm || statusFilter !== "all" 
+              ? "Try adjusting your search or filter criteria" 
+              : "Orders will appear here when customers place them"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
+
