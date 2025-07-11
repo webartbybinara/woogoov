@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -103,11 +104,19 @@ export function OrderList() {
 
       {/* Status Filter Tabs */}
       <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="all">All ({statusCounts.all})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({statusCounts.pending})</TabsTrigger>
-          <TabsTrigger value="processing">Processing ({statusCounts.processing})</TabsTrigger>
-          <TabsTrigger value="completed">Completed ({statusCounts.completed})</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 h-auto p-1">
+          <TabsTrigger value="all" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
+            All ({statusCounts.all})
+          </TabsTrigger>
+          <TabsTrigger value="pending" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
+            Pending ({statusCounts.pending})
+          </TabsTrigger>
+          <TabsTrigger value="processing" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
+            Processing ({statusCounts.processing})
+          </TabsTrigger>
+          <TabsTrigger value="completed" className="text-xs sm:text-sm px-2 py-2 whitespace-nowrap">
+            Completed ({statusCounts.completed})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value={statusFilter} className="mt-6">
