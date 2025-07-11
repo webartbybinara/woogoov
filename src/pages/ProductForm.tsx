@@ -7,13 +7,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useForm } from "react-hook-form";
 import { ArrowLeft, Upload, Plus, X, Save, Eye, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { mediaApi, productsApi } from "@/lib/woocommerce";
+import { mediaApi, productsApi, categoriesApi } from "@/lib/woocommerce";
 
-// Mock categories data
-const categories = [
+// Mock categories data - will be replaced with real data
+const defaultCategories = [
   { value: "electronics", label: "Electronics" },
   { value: "clothing", label: "Clothing" },
   { value: "books", label: "Books" },
@@ -75,9 +76,32 @@ export function ProductForm() {
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
   const [isUploadingAdditional, setIsUploadingAdditional] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [categories, setCategories] = useState(defaultCategories);
+  const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   
   const thumbnailInputRef = useRef<HTMLInputElement>(null);
   const additionalInputRef = useRef<HTMLInputElement>(null);
+
+  // Fetch categories on component mount
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const wooCategories = await categoriesApi.getAll({ per_page: 100 });
+        const formattedCategories = wooCategories.map(cat => ({
+          value: cat.slug,
+          label: cat.name
+        }));
+        setCategories([...defaultCategories, ...formattedCategories]);
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+        // Keep using default categories
+      }
+    };
+
+    fetchCategories();
+  }, []);
 
   // Fetch product data when editing
   useEffect(() => {
@@ -454,6 +478,50 @@ export function ProductForm() {
     }
   };
 
+  const handleCreateCategory = async () => {
+    if (!newCategoryName.trim()) {
+      toast({
+        title: "Category name required",
+        description: "Please enter a category name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setIsCreatingCategory(true);
+      
+      const newCategory = await categoriesApi.create({
+        name: newCategoryName,
+        description: `${newCategoryName} category`
+      });
+
+      const categoryOption = {
+        value: newCategory.slug,
+        label: newCategory.name
+      };
+
+      setCategories([...categories, categoryOption]);
+      form.setValue("category", newCategory.slug);
+      setNewCategoryName("");
+      setIsCreateCategoryOpen(false);
+
+      toast({
+        title: "Category created",
+        description: `Category "${newCategory.name}" has been created successfully.`,
+      });
+    } catch (error) {
+      console.error('Failed to create category:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create category. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingCategory(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -529,20 +597,77 @@ export function ProductForm() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Category</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select a category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {categories.map((category) => (
-                              <SelectItem key={category.value} value={category.value}>
-                                {category.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <div className="flex gap-2">
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select a category" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {categories.map((category) => (
+                                <SelectItem key={category.value} value={category.value}>
+                                  {category.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          <Dialog open={isCreateCategoryOpen} onOpenChange={setIsCreateCategoryOpen}>
+                            <DialogTrigger asChild>
+                              <Button type="button" variant="outline" size="icon">
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Create New Category</DialogTitle>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div>
+                                  <label className="block text-sm font-medium mb-2">Category Name</label>
+                                  <Input
+                                    placeholder="Enter category name"
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    onKeyPress={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        handleCreateCategory();
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setIsCreateCategoryOpen(false);
+                                      setNewCategoryName("");
+                                    }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    onClick={handleCreateCategory}
+                                    disabled={isCreatingCategory || !newCategoryName.trim()}
+                                  >
+                                    {isCreatingCategory ? (
+                                      <>
+                                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                        Creating...
+                                      </>
+                                    ) : (
+                                      "Create Category"
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                         <FormMessage />
                       </FormItem>
                     )}
