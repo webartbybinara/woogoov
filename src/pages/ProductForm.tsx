@@ -43,6 +43,12 @@ interface ProductFormData {
   status: "draft" | "published";
 }
 
+interface ProductImage {
+  id?: number;
+  src: string;
+  alt: string;
+}
+
 export function ProductForm() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -60,8 +66,8 @@ export function ProductForm() {
     },
   });
 
-  const [thumbnailImage, setThumbnailImage] = useState<string | null>(null);
-  const [additionalImages, setAdditionalImages] = useState<string[]>([]);
+  const [thumbnailImage, setThumbnailImage] = useState<ProductImage | null>(null);
+  const [additionalImages, setAdditionalImages] = useState<ProductImage[]>([]);
   const [attributes, setAttributes] = useState<Attribute[]>([]);
   const [variations, setVariations] = useState<Variation[]>([]);
   const [newAttributeName, setNewAttributeName] = useState("");
@@ -94,11 +100,22 @@ export function ProductForm() {
             status: product.status === "publish" ? "published" : "draft",
           });
 
-          // Set images
+          // Set images with proper IDs
           if (product.images?.length > 0) {
-            setThumbnailImage(product.images[0].src);
+            const firstImage = product.images[0];
+            setThumbnailImage({
+              id: firstImage.id,
+              src: firstImage.src,
+              alt: firstImage.alt || "Product thumbnail"
+            });
+            
             if (product.images.length > 1) {
-              setAdditionalImages(product.images.slice(1).map(img => img.src));
+              const additionalImgs = product.images.slice(1).map(img => ({
+                id: img.id,
+                src: img.src,
+                alt: img.alt || "Product image"
+              }));
+              setAdditionalImages(additionalImgs);
             }
           }
 
@@ -283,13 +300,19 @@ export function ProductForm() {
       const uploadResult = await mediaApi.upload(file, file.name);
       
       if (type === "thumbnail") {
-        setThumbnailImage(uploadResult.source_url);
+        setThumbnailImage({
+          src: uploadResult.source_url,
+          alt: "Product thumbnail"
+        });
         toast({
           title: "Thumbnail uploaded",
           description: "Product thumbnail has been uploaded successfully.",
         });
       } else {
-        setAdditionalImages([...additionalImages, uploadResult.source_url]);
+        setAdditionalImages([...additionalImages, {
+          src: uploadResult.source_url,
+          alt: `Product image ${additionalImages.length + 1}`
+        }]);
         toast({
           title: "Image uploaded",
           description: "Additional image has been uploaded successfully.",
@@ -322,6 +345,43 @@ export function ProductForm() {
     try {
       setIsLoading(true);
       
+      // Prepare images array properly for WooCommerce
+      const images = [];
+      
+      if (thumbnailImage) {
+        if (thumbnailImage.id) {
+          // Existing image - keep the ID
+          images.push({
+            id: thumbnailImage.id,
+            src: thumbnailImage.src,
+            alt: thumbnailImage.alt
+          });
+        } else {
+          // New image - don't include ID
+          images.push({
+            src: thumbnailImage.src,
+            alt: thumbnailImage.alt
+          });
+        }
+      }
+      
+      additionalImages.forEach(img => {
+        if (img.id) {
+          // Existing image - keep the ID
+          images.push({
+            id: img.id,
+            src: img.src,
+            alt: img.alt
+          });
+        } else {
+          // New image - don't include ID
+          images.push({
+            src: img.src,
+            alt: img.alt
+          });
+        }
+      });
+      
       // Prepare product data for WooCommerce API
       const productData = {
         name: data.title,
@@ -333,10 +393,7 @@ export function ProductForm() {
         stock_quantity: data.stock,
         manage_stock: true,
         status: status === "published" ? "publish" as const : "draft" as const,
-        images: [
-          ...(thumbnailImage ? [{ id: 0, src: thumbnailImage, alt: "Product thumbnail" }] : []),
-          ...additionalImages.map((src, index) => ({ id: index + 1, src, alt: `Product image ${index + 1}` }))
-        ],
+        images: images,
         attributes: attributes.map((attr, index) => ({
           id: parseInt(attr.id.replace('attr-', '')) || index,
           name: attr.name,
@@ -346,6 +403,8 @@ export function ProductForm() {
           position: index
         }))
       };
+
+      console.log('Submitting product data:', JSON.stringify(productData, null, 2));
 
       let product;
       if (isEditing && id) {
@@ -421,41 +480,88 @@ export function ProductForm() {
         <Form {...form}>
           <form className="space-y-6">
             {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Basic Information</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <FormField
-                control={form.control}
-                name="title"
-                rules={{ required: "Product title is required" }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Product Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter product title" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Basic Information</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
-                  name="price"
-                  rules={{ required: "Price is required", min: { value: 0, message: "Price must be positive" } }}
+                  name="title"
+                  rules={{ required: "Product title is required" }}
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Price ($)</FormLabel>
+                      <FormLabel>Product Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter product title" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    rules={{ required: "Price is required", min: { value: 0, message: "Price must be positive" } }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Price ($)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            step="0.01" 
+                            placeholder="0.00" 
+                            {...field}
+                            onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    rules={{ required: "Category is required" }}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a category" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category.value} value={category.value}>
+                                {category.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="stock"
+                  rules={{ required: "Stock quantity is required", min: { value: 0, message: "Stock must be positive" } }}
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock Quantity</FormLabel>
                       <FormControl>
                         <Input 
                           type="number" 
-                          step="0.01" 
-                          placeholder="0.00" 
+                          placeholder="0" 
                           {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                          onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
                         />
                       </FormControl>
                       <FormMessage />
@@ -465,301 +571,264 @@ export function ProductForm() {
 
                 <FormField
                   control={form.control}
-                  name="category"
-                  rules={{ required: "Category is required" }}
+                  name="description"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Category</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a category" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {categories.map((category) => (
-                            <SelectItem key={category.value} value={category.value}>
-                              {category.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Short Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter a brief description of the product..."
+                          className="min-h-[100px]"
+                          {...field}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
+              </CardContent>
+            </Card>
 
-              <FormField
-                control={form.control}
-                name="stock"
-                rules={{ required: "Stock quantity is required", min: { value: 0, message: "Stock must be positive" } }}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Stock Quantity</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        placeholder="0" 
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Short Description</FormLabel>
-                    <FormControl>
-                      <Textarea 
-                        placeholder="Enter a brief description of the product..."
-                        className="min-h-[100px]"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-          </Card>
-
-          {/* Images */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Product Images</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Thumbnail */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Product Thumbnail</label>
-                <div className="border-2 border-dashed border-border rounded-lg p-4">
-                  {thumbnailImage ? (
-                    <div className="relative w-32 h-32 mx-auto">
-                      <img 
-                        src={thumbnailImage} 
-                        alt="Thumbnail" 
-                        className="w-full h-full object-cover rounded-lg"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => setThumbnailImage(null)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ) : (
-                     <div className="text-center">
-                       {isUploadingThumbnail ? (
-                         <Loader2 className="h-8 w-8 text-muted-foreground mx-auto mb-2 animate-spin" />
-                       ) : (
-                         <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                       )}
-                       <Button 
-                         type="button" 
-                         variant="outline" 
-                         onClick={() => handleImageUpload("thumbnail")}
-                         disabled={isUploadingThumbnail}
-                       >
-                         {isUploadingThumbnail ? (
-                           <>
-                             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                             Uploading...
-                           </>
-                         ) : (
-                           "Upload Thumbnail"
-                         )}
-                       </Button>
-                     </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Additional Images */}
-              <div>
-                <label className="block text-sm font-medium mb-2">Additional Images</label>
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
-                  {additionalImages.map((image, index) => (
-                    <div key={index} className="relative">
-                      <img 
-                        src={image} 
-                        alt={`Additional ${index + 1}`} 
-                        className="w-full aspect-square object-cover rounded-lg"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => removeAdditionalImage(index)}
-                      >
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                  
-                   <button
-                     type="button"
-                     onClick={() => handleImageUpload("additional")}
-                     disabled={isUploadingAdditional}
-                     className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                   >
-                     {isUploadingAdditional ? (
-                       <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
-                     ) : (
-                       <Plus className="h-8 w-8 text-muted-foreground" />
-                     )}
-                   </button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Attributes */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Product Attributes</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Add new attribute */}
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Attribute name (e.g., Color, Size)"
-                  value={newAttributeName}
-                  onChange={(e) => setNewAttributeName(e.target.value)}
-                />
-                <Button type="button" onClick={addAttribute}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
-              </div>
-
-              {/* Existing attributes */}
-              {attributes.map((attribute) => (
-                <div key={attribute.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-medium">{attribute.name}</h4>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => removeAttribute(attribute.id)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    {attribute.values.map((value) => (
-                      <Badge key={value} variant="outline" className="gap-1">
-                        {value}
-                        <button
-                          type="button"
-                          onClick={() => removeAttributeValue(attribute.id, value)}
-                          className="ml-1 hover:text-destructive"
-                        >
-                          <X className="h-3 w-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Add value"
-                      value={newAttributeValue}
-                      onChange={(e) => setNewAttributeValue(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          addAttributeValue(attribute.id);
-                        }
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => addAttributeValue(attribute.id)}
-                    >
-                      Add Value
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          {/* Variations */}
-          {variations.length > 0 && (
+            {/* Images */}
             <Card>
               <CardHeader>
-                <CardTitle>Product Variations</CardTitle>
+                <CardTitle>Product Images</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {variations.map((variation) => (
-                    <div key={variation.id} className="border rounded-lg p-4">
-                      <div className="flex flex-wrap gap-2 mb-3">
-                        {Object.entries(variation.attributes).map(([name, value]) => (
-                          <Badge key={`${name}-${value}`} variant="secondary">
-                            {name}: {value}
-                          </Badge>
-                        ))}
+              <CardContent className="space-y-4">
+                {/* Thumbnail */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Product Thumbnail</label>
+                  <div className="border-2 border-dashed border-border rounded-lg p-4">
+                    {thumbnailImage ? (
+                      <div className="relative w-32 h-32 mx-auto">
+                        <img 
+                          src={thumbnailImage.src} 
+                          alt={thumbnailImage.alt} 
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={() => setThumbnailImage(null)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Price ($)</label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={variation.price}
-                            onChange={(e) => updateVariation(variation.id, "price", parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium mb-1">Stock</label>
-                          <Input
-                            type="number"
-                            value={variation.stock}
-                            onChange={(e) => updateVariation(variation.id, "stock", parseInt(e.target.value) || 0)}
-                          />
-                        </div>
+                    ) : (
+                       <div className="text-center">
+                         {isUploadingThumbnail ? (
+                           <Loader2 className="h-8 w-8 text-muted-foreground mx-auto mb-2 animate-spin" />
+                         ) : (
+                           <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                         )}
+                         <Button 
+                           type="button" 
+                           variant="outline" 
+                           onClick={() => handleImageUpload("thumbnail")}
+                           disabled={isUploadingThumbnail}
+                         >
+                           {isUploadingThumbnail ? (
+                             <>
+                               <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                               Uploading...
+                             </>
+                           ) : (
+                             "Upload Thumbnail"
+                           )}
+                         </Button>
+                       </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Additional Images */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Additional Images</label>
+                  <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                    {additionalImages.map((image, index) => (
+                      <div key={index} className="relative">
+                        <img 
+                          src={image.src} 
+                          alt={image.alt} 
+                          className="w-full aspect-square object-cover rounded-lg"
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={() => removeAdditionalImage(index)}
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                    
+                     <button
+                       type="button"
+                       onClick={() => handleImageUpload("additional")}
+                       disabled={isUploadingAdditional}
+                       className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                     >
+                       {isUploadingAdditional ? (
+                         <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                       ) : (
+                         <Plus className="h-8 w-8 text-muted-foreground" />
+                       )}
+                     </button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-6">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => onSubmit(form.getValues(), "draft")}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              Save Draft
-            </Button>
-            <Button
-              type="button"
-              className="flex-1"
-              onClick={() => onSubmit(form.getValues(), "published")}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Publish
-            </Button>
-          </div>
+            {/* Attributes */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Product Attributes</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Add new attribute */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Attribute name (e.g., Color, Size)"
+                    value={newAttributeName}
+                    onChange={(e) => setNewAttributeName(e.target.value)}
+                  />
+                  <Button type="button" onClick={addAttribute}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add
+                  </Button>
+                </div>
+
+                {/* Existing attributes */}
+                {attributes.map((attribute) => (
+                  <div key={attribute.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">{attribute.name}</h4>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeAttribute(attribute.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {attribute.values.map((value) => (
+                        <Badge key={value} variant="outline" className="gap-1">
+                          {value}
+                          <button
+                            type="button"
+                            onClick={() => removeAttributeValue(attribute.id, value)}
+                            className="ml-1 hover:text-destructive"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Add value"
+                        value={newAttributeValue}
+                        onChange={(e) => setNewAttributeValue(e.target.value)}
+                        onKeyPress={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addAttributeValue(attribute.id);
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => addAttributeValue(attribute.id)}
+                      >
+                        Add Value
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            {/* Variations */}
+            {variations.length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Product Variations</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {variations.map((variation) => (
+                      <div key={variation.id} className="border rounded-lg p-4">
+                        <div className="flex flex-wrap gap-2 mb-3">
+                          {Object.entries(variation.attributes).map(([name, value]) => (
+                            <Badge key={`${name}-${value}`} variant="secondary">
+                              {name}: {value}
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Price ($)</label>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={variation.price}
+                              onChange={(e) => updateVariation(variation.id, "price", parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-1">Stock</label>
+                            <Input
+                              type="number"
+                              value={variation.stock}
+                              onChange={(e) => updateVariation(variation.id, "stock", parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 pt-6">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => onSubmit(form.getValues(), "draft")}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save Draft
+              </Button>
+              <Button
+                type="button"
+                className="flex-1"
+                onClick={() => onSubmit(form.getValues(), "published")}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Eye className="h-4 w-4 mr-2" />
+                )}
+                Publish
+              </Button>
+            </div>
           </form>
         </Form>
       )}
