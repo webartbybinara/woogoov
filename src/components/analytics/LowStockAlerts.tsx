@@ -12,6 +12,11 @@ interface LowStockProduct {
   name: string;
   stock_quantity: number;
   manage_stock: boolean;
+  images: Array<{
+    id: number;
+    src: string;
+    alt: string;
+  }>;
 }
 
 export function LowStockAlerts() {
@@ -126,18 +131,31 @@ export function LowStockAlerts() {
           <div className="space-y-3">
             {lowStockProducts.map((product) => {
               const stockStatus = getStockStatus(product.stock_quantity);
+              const thumbnail = product.images?.[0]?.src || "/placeholder.svg";
+              
               return (
                 <div
                   key={product.id}
-                  className="flex items-center justify-between p-3 border rounded-lg"
+                  className="flex items-center gap-3 p-3 border rounded-lg"
                 >
-                  <div className="flex-1">
-                    <h4 className="font-medium text-foreground">{product.name}</h4>
+                  <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                    <img
+                      src={thumbnail}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg";
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-foreground truncate">{product.name}</h4>
                     <p className="text-sm text-muted-foreground">
                       Stock: {product.stock_quantity} units remaining
                     </p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <Badge variant={stockStatus.variant}>
                       {stockStatus.label}
                     </Badge>

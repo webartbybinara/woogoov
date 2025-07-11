@@ -13,6 +13,11 @@ interface OutOfStockProduct {
   stock_quantity: number;
   manage_stock: boolean;
   stock_status: string;
+  images: Array<{
+    id: number;
+    src: string;
+    alt: string;
+  }>;
 }
 
 export function OutOfStockProducts() {
@@ -118,30 +123,45 @@ export function OutOfStockProducts() {
           </div>
         ) : (
           <div className="space-y-3">
-            {outOfStockProducts.map((product) => (
-              <div
-                key={product.id}
-                className="flex items-center justify-between p-3 border rounded-lg"
-              >
-                <div className="flex-1">
-                  <h4 className="font-medium text-foreground">{product.name}</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {product.manage_stock 
-                      ? `Stock: ${product.stock_quantity} units` 
-                      : `Status: ${product.stock_status}`
-                    }
-                  </p>
+            {outOfStockProducts.map((product) => {
+              const thumbnail = product.images?.[0]?.src || "/placeholder.svg";
+              
+              return (
+                <div
+                  key={product.id}
+                  className="flex items-center gap-3 p-3 border rounded-lg"
+                >
+                  <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-muted">
+                    <img
+                      src={thumbnail}
+                      alt={product.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "/placeholder.svg";
+                      }}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-medium text-foreground truncate">{product.name}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {product.manage_stock 
+                        ? `Stock: ${product.stock_quantity} units` 
+                        : `Status: ${product.stock_status}`
+                      }
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge variant="destructive">
+                      Out of Stock
+                    </Badge>
+                    <Button size="sm" variant="outline">
+                      Restock
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="destructive">
-                    Out of Stock
-                  </Badge>
-                  <Button size="sm" variant="outline">
-                    Restock
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </CardContent>
