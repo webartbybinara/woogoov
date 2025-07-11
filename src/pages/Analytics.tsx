@@ -8,6 +8,7 @@ import { DateFilter, DateRange } from "@/components/analytics/DateFilter";
 import { SalesChart } from "@/components/analytics/SalesChart";
 import { OrderStatusChart } from "@/components/analytics/OrderStatusChart";
 import { LowStockAlerts } from "@/components/analytics/LowStockAlerts";
+import { OutOfStockProducts } from "@/components/analytics/OutOfStockProducts";
 
 export function Analytics() {
   const { toast } = useToast();
@@ -136,33 +137,37 @@ export function Analytics() {
         <OrderStatusChart data={orderStatusData} />
       </div>
 
+      {/* Stock Management Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <LowStockAlerts />
+        <OutOfStockProducts />
+      </div>
+
       {/* Additional Analytics */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <LowStockAlerts />
-        </div>
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5" />
-              Top Products
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {topProducts.map((product, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                  <div>
-                    <p className="font-medium text-foreground">{product.name}</p>
-                    <p className="text-sm text-muted-foreground">{product.sales} sales</p>
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5" />
+                Top Products
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {topProducts.map((product, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-medium text-foreground">{product.name}</p>
+                      <p className="text-sm text-muted-foreground">{product.sales} sales</p>
+                    </div>
+                    <span className="font-semibold text-primary">{product.revenue}</span>
                   </div>
-                  <span className="font-semibold text-primary">{product.revenue}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
