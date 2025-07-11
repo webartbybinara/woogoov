@@ -2,7 +2,6 @@
 import { NavLink } from "react-router-dom";
 import { Home, Package, ShoppingCart, BarChart3, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const navigationItems = [
   { icon: Home, label: "Dashboard", path: "/" },
@@ -42,7 +41,6 @@ export function MobileNavigation() {
             )}
           </NavLink>
         ))}
-        <ThemeToggle variant="mobile" />
       </div>
     </nav>
   );

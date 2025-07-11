@@ -1,10 +1,12 @@
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { Store, User, Bell, Shield, CreditCard } from "lucide-react";
+import { Store, User, Bell, Shield, CreditCard, Palette } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export function Settings() {
   return (
@@ -16,6 +18,25 @@ export function Settings() {
       </div>
 
       <div className="grid gap-6">
+        {/* Appearance Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <Palette className="h-5 w-5" />
+              <span>Appearance</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-sm font-medium">Theme</Label>
+                <p className="text-xs text-muted-foreground">Choose your preferred color theme</p>
+              </div>
+              <ThemeToggle />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Store Settings */}
         <Card>
           <CardHeader>
