@@ -41,6 +41,7 @@ interface ProductFormData {
   category: string;
   stock: number;
   description: string;
+  short_description: string;
   status: "draft" | "published";
 }
 
@@ -63,6 +64,7 @@ export function ProductForm() {
       category: "",
       stock: 0,
       description: "",
+      short_description: "",
       status: "draft",
     },
   });
@@ -120,7 +122,8 @@ export function ProductForm() {
             price: parseFloat(product.price),
             category: product.categories[0]?.slug || "",
             stock: product.stock_quantity,
-            description: product.short_description,
+            description: product.description,
+            short_description: product.short_description,
             status: product.status === "publish" ? "published" : "draft",
           });
 
@@ -453,7 +456,7 @@ export function ProductForm() {
         type: variations.length > 0 ? "variable" : "simple",
         regular_price: variations.length > 0 ? "" : data.price.toString(),
         description: data.description,
-        short_description: data.description,
+        short_description: data.short_description,
         categories: [{ id: 0, name: data.category, slug: data.category }],
         stock_quantity: variations.length > 0 ? null : data.stock,
         manage_stock: variations.length === 0,
@@ -743,10 +746,28 @@ export function ProductForm() {
                   name="description"
                   render={({ field }) => (
                     <FormItem>
+                      <FormLabel>Product Description</FormLabel>
+                      <FormControl>
+                        <Textarea 
+                          placeholder="Enter detailed product description..."
+                          className="min-h-[150px]"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="short_description"
+                  render={({ field }) => (
+                    <FormItem>
                       <FormLabel>Short Description</FormLabel>
                       <FormControl>
                         <Textarea 
-                          placeholder="Enter a brief description of the product..."
+                          placeholder="Enter a brief description for product listings..."
                           className="min-h-[100px]"
                           {...field}
                         />
