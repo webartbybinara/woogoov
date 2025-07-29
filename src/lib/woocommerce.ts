@@ -230,6 +230,67 @@ export const categoriesApi = {
   },
 };
 
+// Product Attributes API
+export const attributesApi = {
+  async getAll() {
+    const response = await wooCommerceApi.get('/products/attributes');
+    return response.data;
+  },
+
+  async create(attribute: { name: string; type?: string; order_by?: string; has_archives?: boolean }) {
+    const response = await wooCommerceApi.post('/products/attributes', {
+      name: attribute.name,
+      type: attribute.type || 'select',
+      order_by: attribute.order_by || 'menu_order',
+      has_archives: attribute.has_archives || false
+    });
+    return response.data;
+  },
+
+  async getById(id: number) {
+    const response = await wooCommerceApi.get(`/products/attributes/${id}`);
+    return response.data;
+  },
+
+  async getTerms(attributeId: number) {
+    const response = await wooCommerceApi.get(`/products/attributes/${attributeId}/terms`);
+    return response.data;
+  },
+
+  async createTerm(attributeId: number, term: { name: string; description?: string }) {
+    const response = await wooCommerceApi.post(`/products/attributes/${attributeId}/terms`, term);
+    return response.data;
+  },
+
+  // Helper function to create global attribute with terms
+  async createWithTerms(attributeName: string, terms: string[]) {
+    try {
+      console.log(`Creating global attribute: ${attributeName} with terms:`, terms);
+      
+      // First create the global attribute
+      const attribute = await this.create({ name: attributeName });
+      console.log('Created attribute:', attribute);
+      
+      // Then create terms for this attribute
+      const createdTerms = [];
+      for (const termName of terms) {
+        try {
+          const term = await this.createTerm(attribute.id, { name: termName });
+          createdTerms.push(term);
+          console.log(`Created term: ${termName} for attribute: ${attributeName}`);
+        } catch (error) {
+          console.error(`Failed to create term ${termName}:`, error);
+        }
+      }
+      
+      return { attribute, terms: createdTerms };
+    } catch (error) {
+      console.error(`Failed to create attribute ${attributeName}:`, error);
+      throw error;
+    }
+  }
+};
+
 // Media/Image Upload API
 export const mediaApi = {
   async upload(file: File, title?: string, altText?: string) {

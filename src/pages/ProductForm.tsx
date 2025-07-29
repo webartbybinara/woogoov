@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useForm } from "react-hook-form";
 import { ArrowLeft, Upload, Plus, X, Save, Eye, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { mediaApi, productsApi, categoriesApi } from "@/lib/woocommerce";
+import { mediaApi, productsApi, categoriesApi, attributesApi } from "@/lib/woocommerce";
 
 // Mock categories data - will be replaced with real data
 const defaultCategories = [
@@ -406,26 +406,60 @@ export function ProductForm() {
         }
       });
       
+      // Create global attributes first if we have variations
+      const processedAttributes = [];
+      if (attributes.length > 0 && variations.length > 0) {
+        console.log('Creating global attributes for variations...');
+        for (const attr of attributes) {
+          try {
+            const result = await attributesApi.createWithTerms(attr.name, attr.values);
+            processedAttributes.push({
+              id: result.attribute.id,
+              name: result.attribute.name,
+              options: attr.values,
+              visible: true,
+              variation: true,
+              position: processedAttributes.length
+            });
+            console.log(`Successfully created global attribute: ${attr.name}`);
+          } catch (error) {
+            console.error(`Failed to create global attribute ${attr.name}:`, error);
+            // Fallback to custom attribute if global creation fails
+            processedAttributes.push({
+              id: 0,
+              name: attr.name,
+              options: attr.values,
+              visible: true,
+              variation: true,
+              position: processedAttributes.length
+            });
+          }
+        }
+      } else if (attributes.length > 0) {
+        // For simple products, use custom attributes
+        processedAttributes.push(...attributes.map((attr, index) => ({
+          id: 0,
+          name: attr.name,
+          options: attr.values,
+          visible: true,
+          variation: false,
+          position: index
+        })));
+      }
+
       // Prepare product data for WooCommerce API
       const productData = {
         name: data.title,
         type: variations.length > 0 ? "variable" : "simple",
-        regular_price: data.price.toString(),
+        regular_price: variations.length > 0 ? "" : data.price.toString(),
         description: data.description,
         short_description: data.description,
         categories: [{ id: 0, name: data.category, slug: data.category }],
-        stock_quantity: data.stock,
-        manage_stock: true,
+        stock_quantity: variations.length > 0 ? null : data.stock,
+        manage_stock: variations.length === 0,
         status: status === "published" ? "publish" as const : "draft" as const,
         images: images,
-        attributes: attributes.map((attr, index) => ({
-          id: parseInt(attr.id.replace('attr-', '')) || index,
-          name: attr.name,
-          options: attr.values,
-          visible: true,
-          variation: true,
-          position: index
-        }))
+        attributes: processedAttributes
       };
 
       console.log('Submitting product data:', JSON.stringify(productData, null, 2));
@@ -441,21 +475,31 @@ export function ProductForm() {
 
       // Create variations if they exist
       if (variations.length > 0 && product.id) {
-        for (const variation of variations) {
+        console.log('Creating variations for product:', product.id);
+        for (const [index, variation] of variations.entries()) {
           const variationData = {
             regular_price: variation.price.toString(),
             stock_quantity: variation.stock,
             manage_stock: true,
-            attributes: Object.entries(variation.attributes).map(([name, value]) => ({
-              name,
-              option: value
-            }))
+            attributes: Object.entries(variation.attributes).map(([name, value]) => {
+              // Find the corresponding processed attribute to get the correct taxonomy name
+              const processedAttr = processedAttributes.find(attr => attr.name === name);
+              return {
+                id: processedAttr?.id || 0,
+                name: processedAttr?.id ? `pa_${name.toLowerCase().replace(/\s+/g, '-')}` : name,
+                option: value
+              };
+            })
           };
           
+          console.log(`Creating variation ${index + 1}:`, variationData);
+          
           try {
-            await productsApi.createVariation(product.id, variationData);
+            const createdVariation = await productsApi.createVariation(product.id, variationData);
+            console.log(`Successfully created variation ${index + 1}:`, createdVariation);
           } catch (error) {
-            console.error('Failed to create variation:', error);
+            console.error(`Failed to create variation ${index + 1}:`, error);
+            console.error('Variation data that failed:', variationData);
           }
         }
       }
